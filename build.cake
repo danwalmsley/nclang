@@ -234,12 +234,6 @@ Task("Clean")
     CleanDirectories(buildDirs);
     CleanDirectory(artifactsDir);
     CleanDirectory(nugetRoot);
-
-    foreach(var tc in toolchainDownloads)
-    {
-        CleanDirectory(tc.BaseDir);   
-        CleanDirectory(tc.ZipDir);
-    }
 });
 
 Task("Restore-NetCore")
