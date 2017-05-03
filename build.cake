@@ -110,8 +110,7 @@ var netCoreProjects = netCoreApps.Select(name =>
     new {
         Path = string.Format("{0}/{1}", netCoreAppsRoot, name),
         Name = name,
-        Framework = XmlPeek(string.Format("{0}/{1}/{1}.csproj", netCoreAppsRoot, name), "//*[local-name()='TargetFramework']/text()"),
-        Runtimes = XmlPeek(string.Format("{0}/{1}/{1}.csproj", netCoreAppsRoot, name), "//*[local-name()='RuntimeIdentifiers']/text()").Split(';')        
+        Framework = XmlPeek(string.Format("{0}/{1}/{1}.csproj", netCoreAppsRoot, name), "//*[local-name()='TargetFramework']/text()"),        
     }).ToList();
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -179,7 +178,7 @@ var nuspecNuGetBehaviors = new NuGetPackSettings()
     Tags = new [] { "Clang", "LLVM", "AvalonStudio", "LibClang", "NClang" },    
     Files = new []
     {
-        new NuSpecContent { Source = "NClang/bin/" + configuration + "/netstandard1.1/NClang.dll", Target = "lib/netstandard1.1" },
+        new NuSpecContent { Source = "NClang/bin/" + configuration + "/netstandard1.4/NClang.dll", Target = "lib/netstandard1.4" },
     },
     BasePath = Directory("./"),
     OutputDirectory = nugetRoot
@@ -259,60 +258,8 @@ Task("Build-NetCore")
     }
 });
 
-Task("Publish-NetCore")
-    .IsDependentOn("Restore-NetCore")
-    .WithCriteria(()=>isMainRepo && isMasterBranch)
-    .Does(() =>
-{
-    foreach (var project in netCoreProjects)
-    {
-        foreach(var runtime in project.Runtimes)
-        {
-            var outputDir = zipRootDir.Combine(project.Name + "-" + runtime);
-
-            Information("Publishing: {0}, runtime: {1}", project.Name, runtime);
-            DotNetCorePublish(project.Path, new DotNetCorePublishSettings {
-                Framework = project.Framework,
-                Configuration = configuration,
-                Runtime = runtime,
-                OutputDirectory = outputDir.FullPath
-            });
-
-            if (IsRunningOnWindows() && (runtime == "win7-x86" || runtime == "win7-x64"))
-            {
-                Information("Patching executable subsystem for: {0}, runtime: {1}", project.Name, runtime);
-                var targetExe = outputDir.CombineWithFilePath(project.Name + ".exe");
-                var exitCodeWithArgument = StartProcess(editbin, new ProcessSettings { 
-                    Arguments = "/subsystem:windows " + targetExe.FullPath
-                });
-                Information("The editbin command exit code: {0}", exitCodeWithArgument);
-            }
-        }
-    }
-});
-
-Task("Zip-NetCore")
-    .IsDependentOn("Publish-NetCore")
-    .WithCriteria(()=>isMainRepo && isMasterBranch)
-    .Does(() =>
-{
-    foreach (var project in netCoreProjects)
-    {
-        foreach(var runtime in project.Runtimes)
-        {
-            var outputDir = zipRootDir.Combine(project.Name + "-" + runtime);
-
-            Zip(outputDir.FullPath, zipRootDir.CombineWithFilePath(project.Name + "-" + runtime + fileZipSuffix), 
-                GetFiles(outputDir.FullPath + "/*.*"));
-        }
-    }    
-});
-
-
 Task("Generate-NuGetPackages")
 .IsDependentOn("Build-NetCore")
-.IsDependentOn("Publish-NetCore")
-.IsDependentOn("Zip-NetCore")
 .Does(()=>{
     foreach(var nuspec in nuspecNuGetSettings)
     {
