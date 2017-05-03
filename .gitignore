@@ -3,6 +3,8 @@
 [Bb]in
 *.user
 *.suo
+tools/
+artifacts/
 
 #NuGet
 packages/
